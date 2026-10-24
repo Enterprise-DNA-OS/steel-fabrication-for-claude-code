@@ -1,13 +1,60 @@
 [
   {
     "name": "week",
-    "title": "This week",
-    "subtitle": "Steel Fabrication for Claude Code: what needs attention, rendered by npm run view",
+    "title": "This week on the floor",
+    "subtitle": "Site dates, where the steel is, and what is holding it up",
     "sections": [
       {
-        "title": "Needs attention",
-        "note": "TODO(author): point this at the industry's attention view (overdue, stuck, quiet).",
-        "sql": "select 'replace me' as item, 'TODO(author)' as why"
+        "title": "Erection sequences against site dates",
+        "sql": "select v.project_code as project, v.sequence_code as seq, sq.required_on as site_needs, (sq.required_on - current_date) as days, round(sum(v.qty*v.unit_kg)/1000.0, 1) as tonnes, round(sum(v.finished_qty*v.unit_kg)/1000.0, 1) as finished_t, round(sum(v.dispatched_qty*v.unit_kg)/1000.0, 1) as sent_t, string_agg(case when v.stage not in ('ready','dispatched') then v.mark || ' ' || v.stage end, ', ' order by v.mark) as not_ready from v_assembly_status v join sequences sq on sq.id = v.sequence_id join projects p on p.id = v.project_id where p.status = 'active' group by v.project_code, v.sequence_code, sq.required_on having sum(v.dispatched_qty) < sum(v.qty) order by sq.required_on"
+      },
+      {
+        "title": "Fabrication against drawings that are not released",
+        "note": "Cut before release, or the drawing changed after cutting.",
+        "sql": "select project_code as project, mark, drawing_no as drawing, drawing_rev as rev, fabricated_rev as cut_to_rev, drawing_status as status, stage from v_assembly_status v join projects p on p.id = v.project_id where p.status = 'active' and cut_qty > 0 and (drawing_status <> 'for-construction' or (fabricated_rev is not null and fabricated_rev <> drawing_rev and dispatched_qty < qty)) order by project_code, mark"
+      },
+      {
+        "title": "Stalled marks",
+        "note": "Started, not finished, nothing recorded for 7 days or more.",
+        "sql": "select project_code as project, mark, description, stage, last_move, (current_date - last_move) as days from v_assembly_status v join projects p on p.id = v.project_id where p.status = 'active' and cut_qty > 0 and stage not in ('ready','dispatched') and last_move <= current_date - 7 order by last_move"
+      },
+      {
+        "title": "Open NCRs",
+        "sql": "select n.number, p.code as project, a.mark, n.raised_on, (current_date - n.raised_on) as days_open, n.description from ncrs n join projects p on p.id = n.project_id left join assemblies a on a.id = n.assembly_id where n.closed_on is null order by n.raised_on"
+      }
+    ]
+  },
+  {
+    "name": "traceability",
+    "title": "Traceability and welding",
+    "subtitle": "What an auditor or certifier would ask for first",
+    "sections": [
+      {
+        "title": "Marks cut with no heat lot recorded",
+        "sql": "select v.project_code as project, v.construction_category as cat, v.mark, v.main_profile as profile, v.stage from v_assembly_status v join projects p on p.id = v.project_id where p.status <> 'complete' and v.cut_qty > 0 and not exists (select 1 from allocations al where al.assembly_id = v.id) and ((v.construction_category = 'CC2' and v.main_member) or v.construction_category in ('CC3','CC4')) order by v.project_code, v.mark"
+      },
+      {
+        "title": "Lots in use without a mill certificate",
+        "sql": "select l.lot_ref as lot, l.heat_no as heat, l.profile, l.supplier, l.received_on, string_agg(p.code || ' ' || a.mark, ', ') as used_in from material_lots l left join allocations al on al.lot_id = l.id left join assemblies a on a.id = al.assembly_id left join projects p on p.id = a.project_id where not l.cert_received group by l.id order by l.received_on"
+      },
+      {
+        "title": "Welder qualifications",
+        "sql": "select full_name as welder, standard, process, qualified_on, case when standard = 'ISO 9606-1' then confirm_by end as confirm_by, expires_on, qual_status as status from v_welder_status where active order by case qual_status when 'expired' then 0 when 'confirmation overdue' then 1 when 'expires soon' then 2 else 3 end, full_name"
+      }
+    ]
+  },
+  {
+    "name": "money",
+    "title": "Claims and tonnes",
+    "subtitle": "Progress claims and the steel behind them",
+    "sections": [
+      {
+        "title": "Projects",
+        "sql": "select code as project, name, client as builder, round(model_tonnes, 1) as model_t, round(qa_tonnes, 1) as qa_t, round(dispatched_tonnes, 1) as sent_t, to_char(contract_value_cents/100.0, 'FM$999,999,990') as contract from v_project_tonnes where status = 'active' order by code"
+      },
+      {
+        "title": "Claims not yet paid",
+        "sql": "select c.number as claim, p.code as project, cl.name as builder, c.period_end, to_char(c.claimed_cents/100.0, 'FM$999,999,990') as claimed, c.status, c.submitted_on, (current_date - c.submitted_on) as days_out from claims c join projects p on p.id = c.project_id join clients cl on cl.id = p.client_id where c.status <> 'paid' order by c.submitted_on nulls last"
       }
     ]
   }

@@ -38,13 +38,29 @@
 
 ## What is this
 
-Steel Fabrication for Claude Code does the job you pay Tekla PowerFab for, as a Postgres database and a set of agent commands. There is no web front end. You open the folder in [Claude Code](https://claude.com/claude-code) (or Codex, OpenCode, Cursor: see `AGENTS.md`) and ask for what you want in plain language. It runs the right query, and it can answer questions the Tekla PowerFab dashboard cannot.
+Steel Fabrication for Claude Code does the production control, traceability and progress-claim side of the job you pay Tekla PowerFab for, as a Postgres database and a set of agent commands. It does not do estimating, nesting or CNC output: keep your nesting software for that. There is no web front end. You open the folder in [Claude Code](https://claude.com/claude-code) (or Codex, OpenCode, Cursor: see `AGENTS.md`) and ask for what you want in plain language. It runs the right query, and it can answer questions the Tekla PowerFab dashboard cannot.
 
-<!-- TODO(author): the annual bill. One sentence: what a 10 to 50 person business typically pays Tekla PowerFab per year, all in, with a source. -->
+Trimble does not publish a price for Tekla PowerFab: it is quoted through resellers, module by module (estimating, project management, purchasing, inventory, production control), and a 10 to 50 person fabricator usually adds implementation, training and an annual subscription per licence on top. Ask your reseller for your all-in yearly figure and compare it with what this costs: nothing, or a setup fee and a retainer if Enterprise DNA runs it for you.
 
 Want the same thing with a web front end, or built on a different stack? That is a customisation, and it is exactly what Enterprise DNA does: [book a call](https://enterprisedna.co/omni/book/?utm_source=github&utm_medium=readme&utm_campaign=tekla-powerfab).
 
-<!-- TODO(author): two or three sentences on what this specific product covers and who it is for. -->
+It is built for a structural steel fabricator working for builders: projects and their AS/NZS 5131 construction category, the drawings and their revisions, erection sequences and the dates the site needs them, the piece marks from the detailer's model and what each station on the floor has finished, the heat lots and mill certificates behind each mark, who welded it to which procedure and whether they were qualified that day, inspections and NCRs, the trucks, and the progress claim. The words are the words a fabrication shop already uses.
+
+**Nothing sends or talks to another system on its own.** Dockets, claims and chase notes are drafted here and a person sends them. The gates are real, though: a mark does not get cut to a drawing that is not released for construction, a welded mark does not go to coating without a passed visual inspection, and a failed test raises an NCR on the spot.
+
+```
+/attention                 everything that wants a decision, worst first
+/sequences                 erection sequences against the site dates, and what is holding each up
+/floor                     tonnes at each station, and the marks that have stopped moving
+/holds                     steel cut against an unreleased or revised drawing
+/trace                     one mark's heat lots, mill certificates, welders, inspections and gaps
+/welders                   qualifications, six-monthly confirmations, expiries
+/claim                     this period's progress claim, worked out from the tonnes
+/compliance                nine rules from AS/NZS 5131, ISO 9606-1 and the Construction Contracts Act
+/weekly-review             the Monday review, written from three commands
+```
+
+Every progress number reads one view, `v_assembly_status`: the floor, the sequences, the loads, the claim and the attention list can never disagree about where a mark is.
 
 ## Why no front end
 
@@ -63,7 +79,45 @@ npm install
 npm run demo
 ```
 
-Then open the folder in Claude Code and type a slash command. <!-- TODO(author): name the first command to try. -->
+`npm run demo` creates the database and loads Kowhai Steel (a demo Tauranga fabricator with four projects: a ground floor sequence 3 days late with 4.5 t still in the yard, a column cut from a heat lot with no mill certificate, a transfer beam cut to a drawing still out for approval, a beam cut to rev B when the drawing is now rev C, a welder whose ISO 9606-1 confirmation lapsed in August, a failed UT test on a CC3 splice, a truck that never left, and a payment claim with no payment schedule after 20 working days), then prints the sequences, the attention list and the trace of one mark.
+
+Then open the folder in Claude Code and type:
+
+```
+/attention
+```
+
+Try `/sequences`, `/floor`, `/holds`, `/trace P-214 K2`, `/welders`, `/claim P-214`. When you are ready for real data, delete `.data/` and start with `/import`.
+
+Fill in the "Who this is for" block in [CLAUDE.md](CLAUDE.md), and put your name, logo and colours in [brand.json](brand.json) so the dockets, claims and data reports carry them.
+
+## Your first hour: ten things to ask for
+
+1. "What needs attention today?"
+2. "Which sequences will be late, and which marks are holding them up?"
+3. "Bring in this Tekla assembly list for the cold store job."
+4. "D-105 is approved for construction."
+5. "All six B2 beams are welded, Sione did them to WPS-03."
+6. "Which marks have we cut with no heat number recorded?"
+7. "Show me everything behind mark K2: heats, certificates, welders, tests."
+8. "Who needs their welder confirmation signed this month?"
+9. "Build tomorrow's truck for Bayfair from what is finished."
+10. "Work out this month's progress claim for P-214 and draft it."
+
+## Ten questions answered from your own records
+
+Every one is a real command or query on the demo data today.
+
+1. Which marks were welded by someone whose qualification was not current for that project's construction category on the day? (`compliance`, rule R4)
+2. Which marks were cut to a drawing revision that has since changed, and have not shipped? (`holds`)
+3. Which erection sequence is going to miss its site date, and at which station is it stuck? (`sequences`)
+4. Which CC2 main members, or any CC3 item, were cut with no heat lot recorded? (`compliance`, rule R2)
+5. Which heat lots in use still have no mill certificate, and which marks did they go into? (`lots --no-cert`)
+6. How many tonnes went through QA each week, and is that enough for the next three sequences? (`tonnes`, `sequences`)
+7. What have we earned on each job and not yet claimed? (`attention`, money)
+8. Which claims have gone past the payment schedule deadline? (`claims`)
+9. Which marks have not moved for a week, and where are they sitting? (`floor`)
+10. What would the manufacturer's data report for this project show as missing today? (`npm run docs -- mdr P-214`)
 
 ### Use it with your own Postgres or Supabase
 
@@ -71,15 +125,59 @@ Copy `.env.example` to `.env`, set `DATABASE_URL`, then `npm run migrate`. Same 
 
 ## The commands
 
-<!-- TODO(author): a table of the slash commands in .claude/commands and what each one does. -->
-
 | Command | What it does |
 |---|---|
-| `/...` | ... |
+| `/attention` | Everything that wants a decision, worst first. |
+| `/weekly-review` | The Monday review, written from three commands. |
+| `/stats` | The shop in four lines. |
+| `/projects` | Active projects with tonnes in the model, through QA and dispatched. |
+| `/project` | One project in full: sequences, stages, drawings, NCRs, claims, notes. |
+| `/drawings` | Drawings by status, with days out for approval. |
+| `/holds` | Steel cut against an unreleased or revised drawing, and drawings waiting on others. |
+| `/release-drawing` | Record a revision or a status change on a drawing. |
+| `/marks` | Piece marks with each station's count, by project, sequence or stage. |
+| `/mark` | One mark: drawing, stations, who did what, loads. |
+| `/floor` | Tonnes at each station and the marks that have stalled. |
+| `/progress` | Record work at cut, fit, weld, qa or coat, with the drawing and inspection gates. |
+| `/sequences` | Erection sequences against the site dates. |
+| `/ready` | Finished steel not on a truck, by site date. |
+| `/load` | Build a truck, dispatch it, render the docket. |
+| `/lots` | Heat lots, mill certificates and where each lot went. |
+| `/receive` | Book in steel with its heat number and certificate. |
+| `/allocate` | Record which heat lot a mark was cut from. |
+| `/trace` | A mark's full traceability and any gap that stops sign-off. |
+| `/welders` | Qualifications, confirmations and expiries. |
+| `/weld` | Record who welded a mark and to which WPS. |
+| `/confirm-welder` | Record an ISO 9606-1 six-monthly confirmation. |
+| `/inspect` | Record an inspection; a fail raises an NCR. |
+| `/ncr` | Raise an NCR. |
+| `/ncrs` | NCRs, open first. |
+| `/tonnes` | Tonnes cut, through QA and sent each week. |
+| `/claim` | Work out and draft this period's progress claim. |
+| `/claims` | Claims and where each stands; late schedules flagged. |
+| `/draft-chase` | Draft a chase for drawings out for approval. |
+| `/draft-overdue-claim` | Draft the follow-up on a claim with no schedule in time. |
+| `/documents` | Dockets, payment claims, the manufacturer's data report. |
+| `/view` | Printable dashboards: the week, traceability, money. |
+| `/new-view` | Add a dashboard in plain language. |
+| `/compliance` | Nine rules checked against the records, each with its source. |
+| `/import` | Bring an assembly list across from Tekla PowerFab. |
+| `/export` | Every table to CSV. |
+| `/log` | A note on a project. |
+| `/customise` | Make it yours: a field, a stage, a rule, in plain language. |
 
-## Instead of tekla-powerfab
+Every command drives one CLI, `npm run steel -- <command>`, which you can also run yourself. `npm run steel -- help` lists it all.
 
-<!-- TODO(author): how to bring data across from Tekla PowerFab; link docs/replace-tekla-powerfab.md -->
+## Instead of Tekla PowerFab
+
+Export the assembly list for a job from Tekla PowerFab (or the assembly report from Tekla Structures) to Excel, save it as CSV, and run:
+
+```bash
+npm run steel -- import tekla-powerfab assembly-list.csv --project=P-301 --dry-run
+npm run steel -- import tekla-powerfab assembly-list.csv --project=P-301
+```
+
+Marks, quantities, weights, profiles, grades, sequences and drawing numbers come across. Re-importing a revised list updates the marks rather than duplicating them. Heat lots, welder records and open jobs' station progress are a short one-off entry. What maps and what does not: [docs/replace-tekla-powerfab.md](docs/replace-tekla-powerfab.md).
 
 ## Architecture
 

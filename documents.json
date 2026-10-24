@@ -1,11 +1,38 @@
 [
   {
-    "name": "example",
-    "title": "TODO(author): the first document this industry must produce",
-    "for_each": "select gen_random_uuid() as id, 'Example' as name",
-    "file": "name",
+    "name": "docket",
+    "title": "Delivery docket",
+    "for_each": "select l.number as id, l.number || ' ' || p.code as label from loads l join projects p on p.id = l.project_id order by l.number",
+    "file": "label",
     "sections": [
-      { "title": "Details", "sql": "select 'replace me' as item, $1::text as record_id" }
+      { "title": "Load", "sql": "select l.number as load, p.code as project, p.name as project_name, c.name as builder, p.site, l.carrier, coalesce(l.dispatched_on, l.planned_on) as date from loads l join projects p on p.id = l.project_id join clients c on c.id = p.client_id where l.number = $1" },
+      { "title": "Pieces on this truck", "sql": "select a.mark, a.description, a.main_profile as profile, li.qty, round(li.qty * a.unit_kg) as kg, sq.code as sequence from load_items li join loads l on l.id = li.load_id join assemblies a on a.id = li.assembly_id left join sequences sq on sq.id = a.sequence_id where l.number = $1 order by a.mark" },
+      { "title": "Totals", "sql": "select sum(li.qty) as pieces, round(sum(li.qty * a.unit_kg)) as kg from load_items li join loads l on l.id = li.load_id join assemblies a on a.id = li.assembly_id where l.number = $1" },
+      { "title": "Received by", "note": "Check the pieces against this list before the truck leaves. Note any damage here.", "sql": "select '' as name, '' as signature, '' as date_and_time where $1::text is not null" }
+    ]
+  },
+  {
+    "name": "claim",
+    "title": "Payment claim",
+    "for_each": "select c.number as id, c.number || ' ' || p.code as label from claims c join projects p on p.id = c.project_id order by c.number",
+    "file": "label",
+    "sections": [
+      { "title": "Claim", "note": "This is a payment claim made under the Construction Contracts Act 2002.", "sql": "select c.number as claim, p.name as project, coalesce(p.external_ref, p.code) as contract_ref, cl.name as payer, p.site, c.period_end as work_to, c.submitted_on as claim_date, (coalesce(c.submitted_on, c.period_end) + p.payment_days) as payment_due_by from claims c join projects p on p.id = c.project_id join clients cl on cl.id = p.client_id where c.number = $1" },
+      { "title": "Construction work this claim covers", "sql": "select coalesce(sq.code, '-') as sequence, a.mark, a.description, a.qty, round(a.qty * a.unit_kg / 1000.0, 3) as tonnes, (select coalesce(sum(ap.qty),0) from assembly_progress ap where ap.assembly_id = a.id and ap.station = 'qa' and ap.done_on <= c.period_end) as qa_passed, (select coalesce(sum(li.qty),0) from load_items li join loads l on l.id = li.load_id where li.assembly_id = a.id and l.dispatched_on <= c.period_end) as delivered from claims c join assemblies a on a.project_id = c.project_id left join sequences sq on sq.id = a.sequence_id where c.number = $1 order by sq.code, a.mark" },
+      { "title": "How the amount is calculated", "note": "Each piece earns its share of the contract by weight: the fabricated share once it passes QA, the rest when it is delivered.", "sql": "select to_char(p.contract_value_cents / 100.0, 'FM$999,999,990.00') as contract_value, p.contract_tonnes as contract_tonnes, p.fabricated_pct || '%' as earned_at_qa, to_char(c.earned_cents / 100.0, 'FM$999,999,990.00') as earned_to_date, to_char(c.retention_cents / 100.0, 'FM$999,999,990.00') as less_retention, to_char(c.previous_cents / 100.0, 'FM$999,999,990.00') as less_previous_claims, to_char(c.claimed_cents / 100.0, 'FM$999,999,990.00') as claimed_now_excl_gst from claims c join projects p on p.id = c.project_id where c.number = $1" }
+    ]
+  },
+  {
+    "name": "mdr",
+    "title": "Manufacturer's data report",
+    "for_each": "select p.code as id, p.code || ' ' || p.name as label from projects p order by p.code",
+    "file": "label",
+    "sections": [
+      { "title": "Project", "sql": "select p.code, p.name, c.name as builder, p.construction_category as construction_category, p.coating_spec from projects p join clients c on c.id = p.client_id where p.code = $1" },
+      { "title": "Material traceability", "note": "Each mark against the heat lots it was cut from and the mill certificate on file.", "sql": "select a.mark, a.main_profile as profile, l.lot_ref as lot, l.heat_no as heat, l.grade, l.supplier, case when l.cert_received then l.cert_ref else 'MISSING' end as mill_certificate from assemblies a join projects p on p.id = a.project_id left join allocations al on al.assembly_id = a.id left join material_lots l on l.id = al.lot_id where p.code = $1 order by a.mark" },
+      { "title": "Welding", "sql": "select a.mark, s.full_name as welder, (select string_agg(q.standard || ' ' || q.process, '; ') from welder_quals q where q.staff_id = s.id) as qualification, wp.code as wps, w.welded_on from weld_records w join assemblies a on a.id = w.assembly_id join projects p on p.id = a.project_id join staff s on s.id = w.welder_id left join wps wp on wp.id = w.wps_id where p.code = $1 order by a.mark, w.welded_on" },
+      { "title": "Inspection and test", "sql": "select a.mark, i.kind as test, i.result, i.inspected_on as date, i.inspector, i.reading from inspections i join assemblies a on a.id = i.assembly_id join projects p on p.id = a.project_id where p.code = $1 order by a.mark, i.inspected_on" },
+      { "title": "Non-conformances", "sql": "select n.number, a.mark, n.raised_on, n.description, n.disposition, n.closed_on from ncrs n join projects p on p.id = n.project_id left join assemblies a on a.id = n.assembly_id where p.code = $1 order by n.raised_on" }
     ]
   }
 ]

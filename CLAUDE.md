@@ -22,11 +22,35 @@ Fill this in once. A worker with context knows. A worker without it guesses.
 
 | When the operator asks for... | Use this |
 |---|---|
-| <!-- TODO(author): one row per slash command --> | `/...` |
+| What needs doing / what is wrong today | `/attention` |
+| The Monday review | `/weekly-review` |
+| Will we make the site dates? Which sequence is late? | `/sequences` |
+| Where is the steel / what is stuck on the floor | `/floor` |
+| A mark or a project in full | `/mark`, `/project` |
+| Something got cut, fitted, welded, QA'd or came back from coating | `/progress` |
+| A drawing was approved, revised or put on hold | `/release-drawing` |
+| What is cut against an unreleased drawing | `/holds` |
+| Steel arrived / a mill certificate arrived | `/receive` |
+| Which heat went into a mark | `/allocate` |
+| Everything behind a mark, for the engineer or certifier | `/trace` |
+| Who welded it / welder tickets | `/weld`, `/welders`, `/confirm-welder` |
+| A test passed or failed | `/inspect`, `/ncrs` |
+| What can go on a truck / build a load / docket | `/ready`, `/load`, `/documents` |
+| Tonnes this week | `/tonnes` |
+| This month's claim / who has not paid | `/claim`, `/claims`, `/draft-overdue-claim` |
+| Chase drawing approvals | `/draft-chase` |
+| Are we compliant | `/compliance` |
+| Bring data across from Tekla PowerFab | `/import` |
+| Add a field, change a rule, rename a station | `/customise` |
+| A new dashboard | `/new-view` |
 
-If an ask fits nothing here, run the CLI directly (`npm run <cli> -- --help`) and then propose a new command for it.
+If an ask fits nothing here, run the CLI directly (`npm run steel -- help`) and then propose a new command for it.
 
 ## Hard rules
+
+- Construction category rules what traceability is owed. CC2: lot traceability for main members. CC3 and CC4: every item, plus who welded it and to which WPS. Read `docs/compliance.md` before answering a traceability question.
+- Never record a weld, an inspection or a heat lot the operator did not tell you about. A gap is a gap until someone fills it with the real record.
+- `--force` on `progress` or `load-add` only with the operator's say-so, and log why with `steel log`.
 
 - Never send email or messages from here. Draft to `drafts/`, a person sends.
 - Never delete records without an explicit yes in this session. Prefer marking closed or archived.

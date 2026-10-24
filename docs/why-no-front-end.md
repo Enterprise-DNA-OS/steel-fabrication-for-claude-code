@@ -13,12 +13,14 @@ That layer used to be the whole product, because talking to a database was hard.
 
 ## What you give up
 
-- **A visual board.** Stages are a table you ask about, not cards you drag.
+- **A 3D model viewer.** The model stays in your detailing software. Here a mark is a row with its drawing, profile and weight.
+- **Barcode scanning at each station.** Progress is recorded by telling Claude Code, one mark or a whole shift at a time. A tablet screen for the floor is something Enterprise DNA builds into your version if you want one.
+- **Nesting and CNC output.** Keep the nesting software that drives your saw and plasma.
 - **A phone app.** It runs where Claude Code runs.
 - **A vendor help desk.** This is open source. Enterprise DNA supports the installed version for businesses that want someone to call.
 
 ## Who this fits
 
-Small teams who already use Claude Code, or who would rather learn to ask than learn another interface. If your team needs a screen to look at all day, keep Tekla PowerFab. If you need the answers more than the screens, this is cheaper, faster and yours.
+Small teams who already use Claude Code, or who would rather learn to ask than learn another interface. If your floor runs on scanners and screens at every station today, have that built into your version, or keep Tekla PowerFab. If you need the answers more than the screens, this is cheaper, faster and yours.
 
 Installed and run for you: https://enterprisedna.co/omni/instead-of/tekla-powerfab

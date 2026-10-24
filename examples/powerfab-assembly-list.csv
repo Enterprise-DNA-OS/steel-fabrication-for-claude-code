@@ -1,0 +1,7 @@
+Assembly Mark,Description,Main Profile,Grade,Quantity,Weight Each (kg),Sequence,Drawing,Revision,Assembly ID
+C10,Column grid 1,250UC72,300PLUS,4,310.5,S1,D-501,A,PF-77101
+C11,Column grid 4 with knee brace,250UC89,300PLUS,2,402.0,S1,D-501,A,PF-77102
+B10,Mezzanine beam,360UB45,300PLUS,6,265.2,S1,D-502,B,PF-77103
+B11,Mezzanine edge beam,310PFC,300PLUS,4,190.0,S2,D-502,B,PF-77104
+ST1,"Stair stringer, left and right",250PFC,300PLUS,2,96.4,S2,D-503,A,PF-77105
+BAD,No quantity row,200UB25,300PLUS,two,50,S2,D-503,A,PF-77106
